@@ -1,36 +1,48 @@
-:root {
-    --colour1: #E8EEF2;
-    --colour2: #D6C9C9;
-    --colour3: #C7D3DD;
-    --colour4: #77B6EA;
-    --colour5: #37393A;
-  }
-  
-  body {
-    font-family: 'Open Sans', sans-serif;
-    background-color: var(--colour1);
-  }
-  
-  .navbar {
-    background-color: var(--colour5) ;
-  }
-  
-  .navbar-default .navbar-nav > li > a:focus, .navbar-default .navbar-nav > li > a:hover {
-    color: var(--colour1);
-  }
-  
-  .navbar-default .navbar-nav > li > a:focus, .navbar-default .navbar-nav > li > a { 
-    color: var(--colour2);
-  }
-  .navbar-default .navbar-brand:focus, .navbar-default .navbar-brand{
-    color: var(--colour2);
-  }
-  
-  .navbar-default .navbar-brand:focus, .navbar-default .navbar-brand:hover{
-    color: var(--colour1);
-  }
-  
-  h2 {
-    color: var(--colour5);
-  }
-  
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300&display=swap');
+*{
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 1.7rem;
+}
+/* TODO: attempt to make the website in dark mode, early attempts saw that the CSS wasn't being handled properly in other html files, and saw weird outcomes with live preview, vs node.js*/
+/*CSS Does not want to work in other files for some reason
+*/
+:root{
+    --bg-color: rgba(214, 212, 212, 0.262);
+    --text-color: rgb(255, 255, 255);
+    /* --main-color: #e90c0c; */
+    --hover-color: rgb(141, 238, 71);
+
+}
+
+.main{
+    background-color: var(--bg-color);
+    color: var(--text-color);
+}
+
+.navbar{
+    background-color: var(--bg-color);
+    /* color: #e90c0c; */   
+ }
+.navbar ul{
+    
+    display: flex;
+    list-style: none;
+    /* margin: 20px 0px; */
+ }
+.navbar ul li{
+    
+    font-size: 1.1rem;
+    font-weight: bold;
+}
+.navbar ul li a{
+    /* background-color: var(--hover-color); */
+    /* text-decoration: none; */
+    color: var(--text-color);
+    /* padding: 8px 25px; */
+    transition: all .5s ease;
+}
+.navbar ul li a:hover{
+    background-color: var(--hover-color);
+    color: var(--bg-color);
+    box-shadow: 0 0 10px;
+}
