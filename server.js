@@ -5,108 +5,158 @@
 * 
 *  Name: Marco Pasqua Student ID: 1000497213 Date: Tuseday, October 4th, 2022
 *
-*  Online (Heroku) Link: ________________________________________________________
+*  Online (Heroku) Link: https://thawing-oasis-79130.herokuapp.com/
 *
-********************************************************************************/ 
+********************************************************************************/
 
 
 var express = require("express");
 var app = express();
-var path = require('path'); //Using path to find the location of the file so it can redirect the user to the html page
+var path = require('path');
+// Using path to find the location of the file so it can redirect the user to the html page
 
-//Importing Json files
-var  departments = require('./data/departments.json');
-var employees = require('./data/employees.json');
+// Importing modules installed from npm to server.js (Assignment 3)
+const multer = require("multer");
+const cloudinary = require('cloudinary').v2;
+const streamifier = require('streamifier');
+const e = require("express");
+app.use(express.urlencoded({extended: true}))
+// Setting up cloudinary to get what it needs
+cloudinary.config({cloud_name: 'dodde1k6f', api_key: '222518759798153', api_secret: 'ybcSVckR32LhZEIYmNY9yHQctws', secure: true});
 
-// import dataService from './data-service.js'
-
-// const dataService = require(path.join(__dirname,'data-service.js'));
-// const dataService = require('./data-service.js');
-const dataService = require(path.join(__dirname, 'data-service.js'));
-
-//Importing data-service.js file
-// var dataService = require('./data-service.js');
+const upload = multer(); // no { storage: storage } since we are not using disk storage
+const service = require(path.join(__dirname, 'blog-service.js')); // geting the blog-service.js file
 
 var HTTP_PORT = process.env.PORT || 8080;
 
+app.use(express.urlencoded({extended: true}))
+
 // call this function after the http server starts listening for requests
 function onHttpStart() {
-  console.log("Express http server listening on: " + HTTP_PORT);
+    console.log("Express http server listening on: " + HTTP_PORT);
 }
-app.use(express.static('public')); //Line used for css
-// setup a 'route' to listen on the default url path (http://localhost)
-app.get("/", function(req,res){
-    
-    res.sendFile(path.join(__dirname+'/views/home.html')); //Will redirect user to the html page
-    
-});
+app.use(express.static('public')); // Line used for css
 
-// setup another route to listen on /about
-app.get("/about", function(req,res){
-    res.sendFile(path.join(__dirname+'/views/about.html'));
+//Since there is no route for '/', I will just redirect the user to teh about page
+app.get('/', (req, res) => {
+    res.redirect('/about');
+})
+//Setting up a route for blog
+app.get('/blog', (req, res) => {
+    service.getPublishedPosts().then((data) => {
+        res.json(data);
+    }).catch((err) =>{
+        res.json({message: err});
+    })
+})
+
+// setup a route to listen on /about
+app.get("/about", function (req, res) {
+    res.sendFile(path.join(__dirname + '/views/about.html'));
     // res.send("Success");
 });
+// setting up a route for categories
+app.get("/categories", (req, res) => {
+    service.getAllCategories().then((data) => {
+        res.json(data);
+    }).catch((err) => {
+        res.json({message: err});
+    })
+})
 
-// setting up a route for employees
-app.get("/employees", function(req, res){
-  // res.send(employees); //Returning the employees.json file to the user
-  dataService.getAllEmployees().then((data) =>{
-    res.json(data);
-  })
-  .catch((err) =>{
-    console.error("Error retrieveing departments: " + err);
-    res.json({message: err});
-  })
-  
+// Setting up a route for /posts
+app.get("/posts", (req, res) => { // creating custom query parameters (could just do req.query.category in the if statement, but for readability and understanding, I left it out)
+    var category = req.query.category;
+    var minDate = req.query.minDate;
+
+    if (category) { // Was there a request to query category?
+        service.getPostsByCategory(category).then(data => res.send(data)).catch(err => res.json({message: err}));
+    } 
+    else if (minDate) { // query on dates
+        service.getPostsByMinDate(minDate).then(data => res.send(data)).catch(err => res.json({message: err}));
+    } 
+    else {
+        service.getAllPosts().then((data) => {
+            res.json(data);
+        }).catch((err) => {
+            res.json({message: err});
+        })
+    }
+
+    
 });
 
-//Setting up a route for managers
-app.get("/managers", function(req,res){
-  
-  // let arrOfManagers = []; //Using literal notation to declare an array of Managers
-  
-  //   for(let i = 0; i < employees.length; i++){
-  //     if(employees[i].isManager === true){ //Check to see which employees are manager
-  //       arrOfManagers.push(employees[i]); //If a employee is a mamanger, the push that employee to arrOfManagers
-  //     }
-  //   }
-  //   res.send(arrOfManagers); //Return arrOfManagers to the user
-  
-  dataService.getManagers().then((data) =>{
-    res.json(data);
-  })
-  .catch((err) =>{
-    console.error("Error retrieveing managers: " + err);
-    res.json({message: err});
-  })
-  
+// Setting up optional routes
+// app.get("/post/:value", (req, res) => {
+//     let num = req.params.value;
+//     service.getPostById(num).then(value => res.json(value)).catch(err => res.json({message: err}));
+// })
+
+// Setting up a route for addPost.html
+app.get("/posts/add", function (req, res) {
+  res.sendFile(path.join(__dirname + "/views/addPost.html")); // Sending html file to the user so they can view it
 });
 
-//Setting up a route for departments, that will show all departments in the JSON
-app.get("/departments", function(req,res){
-  dataService.getDepartments().then((data) =>{
-    res.json(data);
-  })
-  .catch((err) =>{
-    console.error("Error retrieveing departments: " + err);
-    res.json({message: err});
-  })
 
+app.get("/posts/:value", (req, res) => {
+  let value = req.params.value; //if using /posts/:value, variable name should probably be value, same with parameter (let value = req.params.value)
+  service.getPostById(value).then(data =>
+      res.json(data)).catch((err)=>res.json(err));
 });
 
-//Setting up a route to return 404
-app.get("/*", function(req,res){ //Using a * to show that if none of the above routes are used, it will put any other route into a 404 error
-  res.status(404).send("Page Not Found");
+
+// Setting up a route to return 404. IMPORTANT: must GO BELOW all other routes
+app.get("/*", function (req, res) { // Using a * to show that if none of the above routes are used, it will put any other route into a 404 error
+    res.status(404).send("Page Not Found");
 });
+
+// Setting up a POST route for /posts/add
+app.post('/posts/add', upload.single("featureImage"), (req, res) => {
+    if (req.file) {
+        let streamUpload = (req) => {
+            return new Promise((resolve, reject) => {
+                let stream = cloudinary.uploader.upload_stream((error, result) => {
+                    if (result) {
+                        resolve(result);
+                    } else {
+                        reject(error);
+                    }
+                });
+
+                streamifier.createReadStream(req.file.buffer).pipe(stream);
+            });
+        };
+
+        async function upload(req) {
+            let result = await streamUpload(req);
+            console.log(result);
+            return result;
+        }
+
+        upload(req).then((uploaded) => {
+            processPost(uploaded.url);
+        });
+    } else {
+        processPost("");
+    }
+
+    function processPost(imageUrl) {
+        req.body.featureImage = imageUrl;
+        service.addPost(req.body).then(() => {
+            res.redirect("/posts");
+        })
+    }
+
+})
+
 
 // setup http server to listen on HTTP_PORT
 
-//Attempted the methods below to bring in the exported initalize function, but had no luck as node was telling me that the module was not found
-dataService.initialize().then((data) => {
-  app.listen(HTTP_PORT, onHttpStart);
-  console.log("Express http server listening on " + HTTP_PORT)
+// Attempted the methods below to bring in the exported initalize function, but had no luck as node was telling me that the module was not found
+service.initialize().then((data) => {
+    app.listen(HTTP_PORT, onHttpStart);
+    console.log("Express http server listening on " + HTTP_PORT)
 }).catch((err) => {
-  console.error("Error starting server: " + err + " aborting startup");
-  
-});
+    console.error("Error starting server: " + err + " aborting startup");
 
+});

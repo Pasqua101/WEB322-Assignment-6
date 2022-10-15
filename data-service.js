@@ -18,8 +18,6 @@ function initialize(){
             if(err) reject("Unable to read from departments data");
                 departments = JSON.parse(data);
         });
-        console.log(employees);
-        console.log(departments);
         resolve("Read successfully");
         
     });
