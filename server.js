@@ -9,6 +9,7 @@
 *
 ********************************************************************************/
 
+//https://morning-badlands-90535.herokuapp.com/
 
 var express = require("express");
 var app = express();
@@ -86,18 +87,12 @@ app.get("/posts", (req, res) => { // creating custom query parameters (could jus
     
 });
 
-// Setting up optional routes
-// app.get("/post/:value", (req, res) => {
-//     let num = req.params.value;
-//     service.getPostById(num).then(value => res.json(value)).catch(err => res.json({message: err}));
-// })
-
 // Setting up a route for addPost.html
 app.get("/posts/add", function (req, res) {
   res.sendFile(path.join(__dirname + "/views/addPost.html")); // Sending html file to the user so they can view it
 });
 
-
+//Settinf up aroute for /posts/:value, this must go after /posts/add
 app.get("/posts/:value", (req, res) => {
   let value = req.params.value; //if using /posts/:value, variable name should probably be value, same with parameter (let value = req.params.value)
   service.getPostById(value).then(data =>
@@ -111,6 +106,7 @@ app.get("/*", function (req, res) { // Using a * to show that if none of the abo
 });
 
 // Setting up a POST route for /posts/add
+//Post always comes after get
 app.post('/posts/add', upload.single("featureImage"), (req, res) => {
     if (req.file) {
         let streamUpload = (req) => {
