@@ -76,7 +76,7 @@ app.use(function(req,res,next){
 
 //Since there is no route for '/', I will just redirect the user to the about page
 app.get('/', (req, res) => {
-    res.redirect('/about');
+    res.redirect('/blog');
 })
 //Setting up a route for blog
 app.get('/blog', async (req, res) => {
