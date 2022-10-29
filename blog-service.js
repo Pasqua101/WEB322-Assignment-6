@@ -1,11 +1,8 @@
-const { resolveSoa } = require("dns");
-const fs = require("fs");
-const { resolve } = require("path");
-const path = require("path");
-const { rootCertificates } = require("tls");
+const fs = require("fs"); //to use file system module
+var path = require('path');
 
-let posts = [];
-let categories = [];
+var posts = [];
+var categories = [];
 
 function initialize () {
     return new Promise((resolve, reject) => {
@@ -26,29 +23,6 @@ function initialize () {
        resolve("Files read successfully");
     });
 }
-
-function addPost(postData){
-
-    return new Promise((resolve, reject) => {
-        if(posts){
-            if(postData.publish === undefined){ 
-                postData.published = false;
-            }
-            else{
-                postData.published = true;
-            }
-            
-            postData.id = posts.length + 1;
-            posts.push(postData);
-            resolve(postData);
-        }
-        else{
-            console.log("Post unavailable");
-            reject();
-        }
-    });
-}
-
 function getAllPosts() {
     return new Promise((resolve, reject) => {
         if(posts.length){
@@ -57,6 +31,22 @@ function getAllPosts() {
         else{
             reject("No results returned");
         } 
+    })
+}
+
+
+function getPublishedPosts(){
+    return new Promise((resolve, reject) =>{
+        const pubPosts = posts.filter((postsPub) =>{ 
+            return postsPub.published === true;
+        })
+
+        if(pubPosts.length > 0){
+            resolve(pubPosts);
+        }
+        else{
+            reject("No results returned");
+        }
     })
 }
 
@@ -70,7 +60,37 @@ function getAllCategories(){
         }
     })
 }
+function addPost(postData){
+  var day = new Date().getDate();
+    var month = new Date().getMonth() + 1;
+    var year = new Date().getFullYear();
+  return new Promise(function(resolve,reject){
+    
+     
+    try{
 
+     postData.published=(postData.published)?true:false;
+      postData.id = posts.length + 1;
+      if(day <10 && month < 10){
+            postData.postDate = year + "-" +  "0" + month + "-" + "0" + day;
+        }else if(month <10){
+            postData.postDate = year + "-" + "0" + month + "-" + day;
+        }else if (day < 10){
+            postData.postDate = year + "-"+ month + "-" + "0" + day;
+        }else{
+            postData.postDate = year + "-" + month + "-" + day;
+        }
+      posts.push(postData);
+     resolve(postData);
+    
+  }catch(err){
+    reject();
+  }
+
+
+
+});
+}
 function getPostsByCategory (category){
     return new Promise((resolve, reject) => {
         const categoryPosts = posts.filter((post) => {
@@ -84,6 +104,18 @@ function getPostsByCategory (category){
             reject("no results returned");
         }
     })
+}
+function getPublishedPostsByCategory(category){
+  return new Promise((resolve,reject)=>{
+      if(posts.length > 0){
+        let postsByCategory = posts.filter(post=>{ return post.published == true && post.category == category });
+        if(postsByCategory.length > 0) {
+          resolve(postsByCategory);
+        } else {
+          reject("no results returned");
+        }
+      }
+  })
 }
 
 function getPostsByMinDate (minDateStr){
@@ -118,29 +150,16 @@ function getPostById(id){
         
     })
 }
-
-function getPublishedPosts(){
-    return new Promise((resolve, reject) =>{
-        const pubPosts = posts.filter((postsPub) =>{ 
-            return postsPub.published === true;
-        })
-
-        if(pubPosts.length > 0){
-            resolve(pubPosts);
-        }
-        else{
-            reject("No results returned");
-        }
-    })
-}
+ 
 
 module.exports = {
     initialize,
-    addPost,
     getAllPosts,
+    getPublishedPosts,
     getAllCategories,
+    addPost,
     getPostsByCategory,
+    getPublishedPostsByCategory,
     getPostsByMinDate,
-    getPostById,
-    getPublishedPosts
+    getPostById
 }

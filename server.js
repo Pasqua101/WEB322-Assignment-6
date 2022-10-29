@@ -20,12 +20,41 @@ const multer = require("multer");
 const cloudinary = require('cloudinary').v2;
 const streamifier = require('streamifier');
 const e = require("express");
+const exphbs = require("express-handlebars"); //Including express-handlebars for Assignment 4
+const stripJs = require('strip-js'); //Including strip-js, to remove all script tags in html files (Assignment 4)
 app.use(express.urlencoded({extended: true}))
 // Setting up cloudinary to get what it needs
 cloudinary.config({cloud_name: 'dodde1k6f', api_key: '222518759798153', api_secret: 'ybcSVckR32LhZEIYmNY9yHQctws', secure: true});
 
 const upload = multer(); // no { storage: storage } since we are not using disk storage
-const service = require(path.join(__dirname, 'blog-service.js')); // geting the blog-service.js file
+const blogData = require(path.join(__dirname, 'blog-service.js')); // geting the blog-service.js file
+
+//Setting up the handlebars engine
+app.engine('.hbs', exphbs.engine({ extname: '.hbs',
+   //Setting up helpers
+    helpers: {
+        navLink: function(url, options){
+            return '<li' + 
+                ((url == app.locals.activeRoute) ? ' class="active" ' : '') + 
+                '><a href="' + url + '">' + options.fn(this) + '</a></li>';
+        },
+
+        equal: function (lvalue, rvalue, options) {
+            if (arguments.length < 3)
+                throw new Error("Handlebars Helper equal needs 2 parameters");
+            if (lvalue != rvalue) {
+                return options.inverse(this);
+            } else {
+                return options.fn(this);
+            }
+        },
+        safeHTML: function(context){
+            return stripJs(context);
+        }
+        
+    }
+}));
+app.set('view engine', '.hbs');
 
 var HTTP_PORT = process.env.PORT || 8080;
 
@@ -37,71 +66,177 @@ function onHttpStart() {
 }
 app.use(express.static('public')); // Line used for css
 
-//Since there is no route for '/', I will just redirect the user to teh about page
+app.use(function(req,res,next){
+    let route = req.path.substring(1);
+    app.locals.activeRoute = "/" + (isNaN(route.split('/')[1]) ? route.replace(/\/(?!.*)/, "") : route.replace(/\/(.*)/, ""));
+    app.locals.viewingCategory = req.query.category;
+    next();
+});
+
+
+//Since there is no route for '/', I will just redirect the user to the about page
 app.get('/', (req, res) => {
     res.redirect('/about');
 })
 //Setting up a route for blog
-app.get('/blog', (req, res) => {
-    service.getPublishedPosts().then((data) => {
-        res.json(data);
-    }).catch((err) =>{
-        res.json({message: err});
-    })
-})
+app.get('/blog', async (req, res) => {
+
+    // Declare an object to store properties for the view
+    let viewData = {};
+
+    try{
+
+        // declare empty array to hold "post" objects
+        let posts = [];
+
+        // if there's a "category" query, filter the returned posts by category
+        if(req.query.category){
+            // Obtain the published "posts" by category
+            posts = await blogData.getPublishedPostsByCategory(req.query.category);
+        }else{
+            // Obtain the published "posts"
+            posts = await blogData.getPublishedPosts();
+        }
+
+        // sort the published posts by postDate
+        posts.sort((a,b) => new Date(b.postDate) - new Date(a.postDate));
+
+        // get the latest post from the front of the list (element 0)
+        let post = posts[0]; 
+
+        // store the "posts" and "post" data in the viewData object (to be passed to the view)
+        viewData.posts = posts;
+        viewData.post = post;
+
+    }catch(err){
+        viewData.message = "no results";
+    }
+
+    try{
+        // Obtain the full list of "categories"
+        let categories = await blogData.getAllCategories();
+
+        // store the "categories" data in the viewData object (to be passed to the view)
+        viewData.categories = categories;
+    }catch(err){
+        viewData.categoriesMessage = "no results"
+    }
+
+    // render the "blog" view with all of the data (viewData)
+    res.render("blog", {data: viewData})
+
+});
+//Setting up a route for blog that will render a indivdual blog based on ID
+app.get('/blog/:id', async (req, res) => {
+
+    // Declare an object to store properties for the view
+    let viewData = {};
+
+    try{
+
+        // declare empty array to hold "post" objects
+        let posts = [];
+
+        // if there's a "category" query, filter the returned posts by category
+        if(req.query.category){
+            // Obtain the published "posts" by category
+            posts = await blogData.getPublishedPostsByCategory(req.query.category);
+        }else{
+            // Obtain the published "posts"
+            posts = await blogData.getPublishedPosts();
+        }
+
+        // sort the published posts by postDate
+        posts.sort((a,b) => new Date(b.postDate) - new Date(a.postDate));
+
+        // store the "posts" and "post" data in the viewData object (to be passed to the view)
+        viewData.posts = posts;
+
+    }catch(err){
+        viewData.message = "no results";
+    }
+
+    try{
+        // Obtain the post by "id"
+        viewData.post = await blogData.getPostById(req.params.id);
+    }catch(err){
+        viewData.message = "no results"; 
+    }
+
+    try{
+        // Obtain the full list of "categories"
+        let categories = await blogData.getAllCategories();
+
+        // store the "categories" data in the viewData object (to be passed to the view)
+        viewData.categories = categories;
+    }catch(err){
+        viewData.categoriesMessage = "no results"
+    }
+
+    // render the "blog" view with all of the data (viewData)
+    res.render("blog", {data: viewData})
+});
 
 // setup a route to listen on /about
 app.get("/about", function (req, res) {
-    res.sendFile(path.join(__dirname + '/views/about.html'));
-    // res.send("Success");
+    res.render(path.join(__dirname + '/views/about.hbs'));//Using res.render to render the about.hbs page
 });
 // setting up a route for categories
 app.get("/categories", (req, res) => {
-    service.getAllCategories().then((data) => {
-        res.json(data);
+    blogData.getAllCategories().then((data) => {
+        res.render("categories", {categories: data});
     }).catch((err) => {
-        res.json({message: err});
+        res.render("posts",{message: "no results"});
     })
 })
 
-// Setting up a route for /posts
-app.get("/posts", (req, res) => { // creating custom query parameters (could just do req.query.category in the if statement, but for readability and understanding, I left it out)
+
+app.get("/posts", (req, res) => { 
+    // creating custom query parameters (could just do req.query.category in the if statement, but for readability and understanding, I left it out)
     var category = req.query.category;
     var minDate = req.query.minDate;
 
-    if (category) { // Was there a request to query category?
-        service.getPostsByCategory(category).then(data => res.send(data)).catch(err => res.json({message: err}));
-    } 
-    else if (minDate) { // query on dates
-        service.getPostsByMinDate(minDate).then(data => res.send(data)).catch(err => res.json({message: err}));
-    } 
-    else {
-        service.getAllPosts().then((data) => {
-            res.json(data);
-        }).catch((err) => {
-            res.json({message: err});
+    if(category){ // Was there a request to query category?
+        blogData.getPostsByCategory(category).then((data) => {
+            res.render("posts", {info: data});
+        }).catch(function(err){
+            res.render("posts", {message: "no results"});
         })
     }
-
+    else if(minDate){ // query on dates
+        blogData.getPostsByMinDate(minDate).then((data) => {
+            res.render("posts", {info: data});
+        }).catch(function(err){
+            res.render("posts", {message: "no results"});
+        })
+    }
+    else{
+        blogData.getAllPosts().then((data) => {
+            res.render("posts", {info:data});
+        }).catch(function (err){
+            res.render("posts", {message: "no results"});
+        })
+    }
     
 });
 
 // Setting up a route for addPost.html
 app.get("/posts/add", function (req, res) {
-  res.sendFile(path.join(__dirname + "/views/addPost.html")); // Sending html file to the user so they can view it
+    res.render('addPost');
+//   res.render(path.join(__dirname + "/views/addPost.hbs")); //Rendering addPost.hbs
 });
 
-//Settinf up aroute for /posts/:value, this must go after /posts/add
+//Setting up aroute for /posts/:value, this must go after /posts/add
 app.get("/posts/:value", (req, res) => {
   let value = req.params.value; //if using /posts/:value, variable name should probably be value, same with parameter (let value = req.params.value)
-  service.getPostById(value).then(data =>
+  blogData.getPostById(value).then(data =>
       res.json(data)).catch((err)=>res.json(err));
 });
 
 
 // Setting up a route to return 404. IMPORTANT: must GO BELOW all other routes
 app.get("/*", function (req, res) { // Using a * to show that if none of the above routes are used, it will put any other route into a 404 error
-    res.status(404).send("Page Not Found");
+    res.status(404).render(path.join(__dirname + '/views/404.hbs'));
 });
 
 // Setting up a POST route for /posts/add
@@ -137,7 +272,7 @@ app.post('/posts/add', upload.single("featureImage"), (req, res) => {
 
     function processPost(imageUrl) {
         req.body.featureImage = imageUrl;
-        service.addPost(req.body).then(() => {
+        blogData.addPost(req.body).then(() => {
             res.redirect("/posts");
         })
     }
@@ -148,7 +283,7 @@ app.post('/posts/add', upload.single("featureImage"), (req, res) => {
 // setup http server to listen on HTTP_PORT
 
 // Attempted the methods below to bring in the exported initalize function, but had no luck as node was telling me that the module was not found
-service.initialize().then((data) => {
+blogData.initialize().then((data) => {
     app.listen(HTTP_PORT, onHttpStart);
     console.log("Express http server listening on " + HTTP_PORT)
 }).catch((err) => {
