@@ -231,6 +231,15 @@ app.get("/posts/:value", (req, res) => {
   let value = req.params.value; //if using /posts/:value, variable name should probably be value, same with parameter (let value = req.params.value)
   blogData.getPostById(value).then(data =>
       res.json(data)).catch((err)=>res.json(err));
+//     //Couldn't find a way to use render with this, as when I did it would display a empty result
+//     //The code below was my attempt to use res.render
+//     let value = req.params.value;
+//     blogData.getPostById(value).then((data) =>{
+//     res.render("posts", {info:data});
+//  }).catch(function(err){
+//     res.render("posts", {message: "no results"})
+//  })
+
 });
 
 
