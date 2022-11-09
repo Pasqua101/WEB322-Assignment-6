@@ -6,9 +6,16 @@
 *  Name: Marco Pasqua Student ID: 1000497213 Date: Tuesday, November 1st, 2022
 *
 *  Online (Heroku) Link: https://salty-hamlet-77009.herokuapp.com/ //NOTE: BEFORE RUNNING CODE CHANGE HEROKU app
-https://salty-hamlet-77009.herokuapp.com/
 *
 ********************************************************************************/
+//Required info from A5 from postgress
+//Host: ec2-54-161-255-125.compute-1.amazonaws.com
+//Database: d4jhdu2c5t5dof
+//User:  yjnvyppfgdiflk
+//Port: 5432
+//Password: a51552b8cf33c388d71dc021f702198495ed4061bfb1c5d69a354a6252ab7a56
+//URI: postgres://yjnvyppfgdiflk:a51552b8cf33c388d71dc021f702198495ed4061bfb1c5d69a354a6252ab7a56@ec2-54-161-255-125.compute-1.amazonaws.com:5432/d4jhdu2c5t5dof
+//Heroku CLI: heroku pg:psql postgresql-horizontal-58002 --app salty-hamlet-77009
 
 
 var express = require("express");
@@ -51,6 +58,13 @@ app.engine('.hbs', exphbs.engine({ extname: '.hbs',
         },
         safeHTML: function(context){
             return stripJs(context);
+        },
+        
+        formatDate: function(dateObj){
+            let year = dateObj.getFullYear();
+            let month = (dateObj.getMonth() + 1).toString();
+            let day = dateObj.getDate().toString();
+            return `${year}-${month.padStart(2, '0')}-${day.padStart(2,'0')}`;
         }
         
     }
