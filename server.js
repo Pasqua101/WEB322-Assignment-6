@@ -1,5 +1,5 @@
 /*********************************************************************************
-*  WEB322 – Assignment 04
+*  WEB322 – Assignment 05
 *  I declare that this assignment is my own work in accordance with Seneca  Academic Policy.  No part *  of this assignment has been copied manually or electronically from any other source 
 *  (including 3rd party web sites) or distributed to other students.
 * 
@@ -36,6 +36,8 @@ cloudinary.config({cloud_name: 'dodde1k6f', api_key: '222518759798153', api_secr
 
 const upload = multer(); // no { storage: storage } since we are not using disk storage
 const blogData = require(path.join(__dirname, 'blog-service.js')); // geting the blog-service.js file
+
+app.use(express.urlencoded({extended: true}));
 
 //Setting up the handlebars engine
 app.engine('.hbs', exphbs.engine({ extname: '.hbs',
@@ -196,15 +198,45 @@ app.get('/blog/:id', async (req, res) => {
 app.get("/about", function (req, res) {
     res.render(path.join(__dirname + '/views/about.hbs'));//Using res.render to render the about.hbs page
 });
+
+app.get("/categories/add", (req, res) =>{
+    res.render("addCategory");
+});
+
 // setting up a route for categories
 app.get("/categories", (req, res) => {
     blogData.getAllCategories().then((data) => {
-        res.render("categories", {categories: data});
+        if(data.length > 0){
+            res.render("categories", {categories: data});
+        }
+        else{
+            res.render("categories",{message: "no results"});    
+        }
     }).catch((err) => {
-        res.render("posts",{message: "no results"});
+        res.render("categories",{message: "no results"});
     })
-})
+});
 
+//Setting up a rouet for /categories/delete/:id
+app.get("/categories/delete/:id", function (req, res){
+    let id = req.params.id;
+    blogData.deleteCategoryById(id).then(function(data) {
+        res.render("/categories");
+    }).catch(function(){
+        res.status(500).send({message: "Unable to Remove Category / Category not found)"});
+    });
+});
+
+// Setting up a route for addPost.html
+app.get("/posts/add", function (req, res) {
+
+    blogData.getAllCategories().then(function(data){
+        res.render("addPost", {categories: data});
+    }).catch(function(){
+        res.render("addPost", {categories:[]});
+    })
+
+});
 
 app.get("/posts", (req, res) => { 
     // creating custom query parameters (could just do req.query.category in the if statement, but for readability and understanding, I left it out)
@@ -213,33 +245,45 @@ app.get("/posts", (req, res) => {
 
     if(category){ // Was there a request to query category?
         blogData.getPostsByCategory(category).then((data) => {
-            res.render("posts", {info: data});
+            if(data.length > 0){
+                res.render("posts", {info: data});
+            }
+            else{
+                res.render("posts", {message: "no results"});
+            }
         }).catch(function(err){
             res.render("posts", {message: "no results"});
         })
     }
     else if(minDate){ // query on dates
         blogData.getPostsByMinDate(minDate).then((data) => {
-            res.render("posts", {info: data});
+            if(data.length > 0){
+                res.render("posts", {info: data});
+            }
+            else{
+                res.render("posts", {message: "no results"});
+            }
         }).catch(function(err){
             res.render("posts", {message: "no results"});
         })
     }
     else{
         blogData.getAllPosts().then((data) => {
-            res.render("posts", {info:data});
+            if(data.length > 0){
+                res.render("posts", {info: data});
+            }
+            else{
+                res.render("posts", {message: "no results"});
+            }
         }).catch(function (err){
             res.render("posts", {message: "no results"});
         })
     }
     
+    
 });
 
-// Setting up a route for addPost.html
-app.get("/posts/add", function (req, res) {
-    res.render('addPost');
-//   res.render(path.join(__dirname + "/views/addPost.hbs")); //Rendering addPost.hbs
-});
+
 
 //Setting up aroute for /posts/:value, this must go after /posts/add
 app.get("/posts/:value", (req, res) => {
@@ -255,6 +299,15 @@ app.get("/posts/:value", (req, res) => {
 //     res.render("posts", {message: "no results"})
 //  })
 
+});
+
+app.get("/posts/delete/:id", (req, res) =>{
+    let id = req.params.id;
+    blogData.deletePostById(id).then(function(){
+        res.render("/posts");
+    }).catch(function(){
+        res.status(500).send({message : "Unable to Remove Post / Post not found)"});
+    })
 });
 
 
@@ -298,6 +351,44 @@ app.post('/posts/add', upload.single("featureImage"), (req, res) => {
         req.body.featureImage = imageUrl;
         blogData.addPost(req.body).then(() => {
             res.redirect("/posts");
+        })
+    }
+
+});
+
+app.post('/categories/add', (req, res) => {
+    if (req.file) {
+        let streamUpload = (req) => {
+            return new Promise((resolve, reject) => {
+                let stream = cloudinary.uploader.upload_stream((error, result) => {
+                    if (result) {
+                        resolve(result);
+                    } else {
+                        reject(error);
+                    }
+                });
+
+                streamifier.createReadStream(req.file.buffer).pipe(stream);
+            });
+        };
+
+        async function upload(req) {
+            let result = await streamUpload(req);
+            console.log(result);
+            return result;
+        }
+
+        upload(req).then((uploaded) => {
+            processPost(uploaded.url);
+        });
+    } else {
+        processPost("");
+    }
+
+    function processPost(imageUrl) {
+        req.body.featureImage = imageUrl;
+        blogData.addCategory(req.body).then(() => {
+            res.redirect("/categories");
         })
     }
 

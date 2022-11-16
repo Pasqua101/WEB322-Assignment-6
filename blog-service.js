@@ -30,7 +30,15 @@ var Post = sequelize.define('Post', {
   published: Sequelize.BOOLEAN
 });
 
-var Category = sequelize.define('Category', {category: Sequelize.STRING});
+var Category = sequelize.define('Category', {
+  category : {
+    categoryid: Sequelize.INTEGER,
+    primaryKey: true,
+    autoIncrement: true
+    
+  },
+  category: Sequelize.STRING
+});
 
 Post.belongsTo(Category, {foreignKey: 'category'});
 
@@ -187,6 +195,53 @@ function getPostById(id) {
 
 }
 
+function addCategory(categoryData){
+  return new Promise(function (resolve, reject){
+    for(let cat in categoryData){
+      if(categoryData[cat] === ""){
+        categoryData[cat] = null;
+      }
+    };
+    Category.create({
+        //Should autoincrement the id
+        category: categorycategory
+    }).then(() =>{
+      resolve("adding category was a success");
+    }).catch(() => {
+      reject("Unable to create category");
+    });
+  })
+  
+}
+
+function deleteCategoryById(id){
+  return new Promise(function (resolve, reject){
+    Category.destory({
+      where: { 
+        categoryid : id
+      }
+    }).then(()=>{
+      resolve("Category # " + id + " has been deleted");
+    }).catch(()=>{
+      reject("Unable to delete category # " + id);
+    })
+  })
+}
+
+function deletePostById(id){
+  return new Promise(function (resolve, reject){
+    Post.destory({
+      where: {
+        postid : id
+      }
+    }).then(()=>{
+      resolve("Post # " + id + " has been deleted");
+    }).catch(()=>{
+      reject("Unable to delete post # " + id);
+    })
+  })
+}
+
 
 module.exports = {
     initialize,
@@ -197,5 +252,8 @@ module.exports = {
     getPostsByCategory,
     getPublishedPostsByCategory,
     getPostsByMinDate,
-    getPostById
+    getPostById,
+    addCategory,
+    deleteCategoryById,
+    deletePostById
 }
