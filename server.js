@@ -5,7 +5,7 @@
 * 
 *  Name: Marco Pasqua Student ID: 1000497213 Date: Tuesday, November 1st, 2022
 *
-*  Online (Heroku) Link: https://salty-hamlet-77009.herokuapp.com/ //NOTE: BEFORE RUNNING CODE CHANGE HEROKU app
+*  Online (Heroku) Link: https://salty-hamlet-77009.herokuapp.com/ 
 *
 ********************************************************************************/
 //Required info from A5 from postgress

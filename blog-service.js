@@ -204,7 +204,7 @@ function addCategory(categoryData){
     };
     Category.create({
         //Should autoincrement the id
-        category: categorycategory
+        category: categoryData.category
     }).then(() =>{
       resolve("adding category was a success");
     }).catch(() => {
