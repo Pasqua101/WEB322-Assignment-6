@@ -220,8 +220,8 @@ app.get("/categories", (req, res) => {
 //Setting up a rouet for /categories/delete/:id
 app.get("/categories/delete/:id", function (req, res){
     let id = req.params.id;
-    blogData.deleteCategoryById(id).then(function(data) {
-        res.render("/categories");
+    blogData.deleteCategoryById(id).then(function() {
+        res.redirect("/categories");
     }).catch(function(){
         res.status(500).send({message: "Unable to Remove Category / Category not found)"});
     });
@@ -244,9 +244,9 @@ app.get("/posts", (req, res) => {
     var minDate = req.query.minDate;
 
     if(category){ // Was there a request to query category?
-        blogData.getPostsByCategory(category).then((data) => {
+        blogData.getPostsByCategory(category).then(data => {
             if(data.length > 0){
-                res.render("posts", {info: data});
+                res.render("posts", {posts: data});
             }
             else{
                 res.render("posts", {message: "no results"});
@@ -258,7 +258,7 @@ app.get("/posts", (req, res) => {
     else if(minDate){ // query on dates
         blogData.getPostsByMinDate(minDate).then((data) => {
             if(data.length > 0){
-                res.render("posts", {info: data});
+                res.render("posts", {posts: data});
             }
             else{
                 res.render("posts", {message: "no results"});
@@ -270,7 +270,7 @@ app.get("/posts", (req, res) => {
     else{
         blogData.getAllPosts().then((data) => {
             if(data.length > 0){
-                res.render("posts", {info: data});
+                res.render("posts", {posts: data});
             }
             else{
                 res.render("posts", {message: "no results"});
@@ -303,9 +303,11 @@ app.get("/posts/:value", (req, res) => {
 
 app.get("/posts/delete/:id", (req, res) =>{
     let id = req.params.id;
+    console.log(id);
     blogData.deletePostById(id).then(function(){
-        res.render("/posts");
-    }).catch(function(){
+        
+        res.render("posts");
+    }).catch(function(err){
         res.status(500).send({message : "Unable to Remove Post / Post not found)"});
     })
 });
@@ -313,7 +315,8 @@ app.get("/posts/delete/:id", (req, res) =>{
 
 // Setting up a route to return 404. IMPORTANT: must GO BELOW all other routes
 app.get("/*", function (req, res) { // Using a * to show that if none of the above routes are used, it will put any other route into a 404 error
-    res.status(404).render(path.join(__dirname + '/views/404.hbs'));
+    // res.status(404).render(path.join(__dirname + '/views/404.hbs'));
+    res.status(404).render('404.hbs');
 });
 
 // Setting up a POST route for /posts/add
@@ -356,43 +359,13 @@ app.post('/posts/add', upload.single("featureImage"), (req, res) => {
 
 });
 
-app.post('/categories/add', (req, res) => {
-    if (req.file) {
-        let streamUpload = (req) => {
-            return new Promise((resolve, reject) => {
-                let stream = cloudinary.uploader.upload_stream((error, result) => {
-                    if (result) {
-                        resolve(result);
-                    } else {
-                        reject(error);
-                    }
-                });
-
-                streamifier.createReadStream(req.file.buffer).pipe(stream);
-            });
-        };
-
-        async function upload(req) {
-            let result = await streamUpload(req);
-            console.log(result);
-            return result;
-        }
-
-        upload(req).then((uploaded) => {
-            processPost(uploaded.url);
-        });
-    } else {
-        processPost("");
-    }
-
-    function processPost(imageUrl) {
-        req.body.featureImage = imageUrl;
-        blogData.addCategory(req.body).then(() => {
-            res.redirect("/categories");
-        })
-    }
-
-})
+app.post("/categories/add", (req,res)=>{
+    blogData.addCategory(req.body).then(()=>{
+        res.redirect("/categories");
+    }).catch(err=>{
+        res.status(500).send(err);
+    })
+}); 
 
 
 // setup http server to listen on HTTP_PORT
