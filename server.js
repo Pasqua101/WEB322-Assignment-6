@@ -1,5 +1,5 @@
 /*********************************************************************************
-*  WEB322 – Assignment 05
+*  WEB322 – Assignment 06
 *  I declare that this assignment is my own work in accordance with Seneca  Academic Policy.  No part *  of this assignment has been copied manually or electronically from any other source 
 *  (including 3rd party web sites) or distributed to other students.
 * 
@@ -22,7 +22,9 @@ var express = require("express");
 var app = express();
 var path = require('path');
 // Using path to find the location of the file so it can redirect the user to the html page
-
+//Assignment 6 require auth-service.js
+const authData = require(path.join(__dirname, "auth-service.js"));
+const clientSessions = require("client-sessions");
 // Importing modules installed from npm to server.js (Assignment 3)
 const multer = require("multer");
 const cloudinary = require('cloudinary').v2;
@@ -90,6 +92,32 @@ app.use(function(req,res,next){
     next();
 });
 
+//Middleware for A6
+// Setup client-sessions
+app.use(clientSessions({
+    cookieName: "session", // this is the object name that will be added to 'req'
+    secret: "week10example_web322", // this should be a long un-guessable string.
+    duration: 2 * 60 * 1000, // duration of the session in milliseconds (2 minutes)
+    activeDuration: 1000 * 60 // the session will be extended by this many ms each request (1 minute)
+}));
+
+app.use(function(req, res, next) {
+    res.locals.session = req.session;
+    next();
+});  
+//Middleware for A6 ^
+
+// This is a helper middleware function that checks if a user is logged in
+// we can use it in any route that we want to protect against unauthenticated access.
+// A more advanced version of this would include checks for authorization as well after
+// checking if the user is authenticated
+function ensureLogin(req, res, next) {
+    if (!req.session.user) {
+      res.redirect("/login");
+    } else {
+      next();
+    }
+  }
 
 //Since there is no route for '/', I will just redirect the user to the about page
 app.get('/', (req, res) => {
@@ -143,6 +171,53 @@ app.get('/blog', async (req, res) => {
     res.render("blog", {data: viewData})
 
 });
+
+//Setting up routes for assignment 6
+app.get('/login', function(req, res){
+    console.log('Render login page');
+    res.render('login');
+});
+
+app.get('/register', function(req, res){
+    res.render('register');
+});
+
+app.post('/register', function(req, res){
+    authData.registerUser(req.body).then(function(){
+      res.render('register', {successMessage : "User created"});
+    }).catch(function(err){
+        res.render('register', {errorMessage : err, userName : req.body.userName});
+    })
+
+})
+
+app.post('/login', function(req, res){
+    req.body.userAgent = req.get('User-Agent');
+    console.log('Inside login in post');
+    authData.checkUser(req.body).then((user) =>{
+        console.log('Inside checkUser.then()');
+        req.session.user ={
+            userName : user.userName,
+            email : user.email,
+            loginHistory : user.loginHistory
+        }
+        res.redirect('/posts');
+    }).catch(function(err){
+        console.log('Inside checkUser.catch()');
+        res.render('login', {errorMessage: err, userName: req.body.userName});
+    });
+});
+
+app.get('/logout', function(req, res){
+    req.session.reset();
+    res.redirect('/');
+});
+
+app.get('/userHistory', ensureLogin, function(req, res){
+    res.render('userHistory');
+});
+//End of setting up routes for A6
+
 //Setting up a route for blog that will render a indivdual blog based on ID
 app.get('/blog/:id', async (req, res) => {
 
@@ -199,12 +274,12 @@ app.get("/about", function (req, res) {
     res.render(path.join(__dirname + '/views/about.hbs'));//Using res.render to render the about.hbs page
 });
 
-app.get("/categories/add", (req, res) =>{
+app.get("/categories/add", ensureLogin, (req, res) =>{
     res.render("addCategory");
 });
 
 // setting up a route for categories
-app.get("/categories", (req, res) => {
+app.get("/categories", ensureLogin, (req, res) => {
     blogData.getAllCategories().then((data) => {
         if(data.length > 0){
             res.render("categories", {categories: data});
@@ -218,7 +293,7 @@ app.get("/categories", (req, res) => {
 });
 
 //Setting up a rouet for /categories/delete/:id
-app.get("/categories/delete/:id", function (req, res){
+app.get("/categories/delete/:id", ensureLogin, function (req, res){
     let id = req.params.id;
     blogData.deleteCategoryById(id).then(function() {
         res.redirect("/categories");
@@ -228,7 +303,7 @@ app.get("/categories/delete/:id", function (req, res){
 });
 
 // Setting up a route for addPost.html
-app.get("/posts/add", function (req, res) {
+app.get("/posts/add", ensureLogin, function (req, res) {
 
     blogData.getAllCategories().then(function(data){
         res.render("addPost", {categories: data});
@@ -238,7 +313,7 @@ app.get("/posts/add", function (req, res) {
 
 });
 
-app.get("/posts", (req, res) => { 
+app.get("/posts", ensureLogin, (req, res) => { 
     // creating custom query parameters (could just do req.query.category in the if statement, but for readability and understanding, I left it out)
     var category = req.query.category;
     var minDate = req.query.minDate;
@@ -286,7 +361,7 @@ app.get("/posts", (req, res) => {
 
 
 //Setting up aroute for /posts/:value, this must go after /posts/add
-app.get("/posts/:value", (req, res) => {
+app.get("/posts/:value", ensureLogin, (req, res) => {
   let value = req.params.value; //if using /posts/:value, variable name should probably be value, same with parameter (let value = req.params.value)
   blogData.getPostById(value).then(data =>
       res.json(data)).catch((err)=>res.json(err));
@@ -301,7 +376,7 @@ app.get("/posts/:value", (req, res) => {
 
 });
 
-app.get("/posts/delete/:id", (req, res) =>{
+app.get("/posts/delete/:id", ensureLogin, (req, res) =>{
     let id = req.params.id;
     console.log(id);
     blogData.deletePostById(id).then(function(){
@@ -321,7 +396,7 @@ app.get("/*", function (req, res) { // Using a * to show that if none of the abo
 
 // Setting up a POST route for /posts/add
 //Post always comes after get
-app.post('/posts/add', upload.single("featureImage"), (req, res) => {
+app.post('/posts/add', ensureLogin, upload.single("featureImage"), (req, res) => {
     if (req.file) {
         let streamUpload = (req) => {
             return new Promise((resolve, reject) => {
@@ -359,7 +434,7 @@ app.post('/posts/add', upload.single("featureImage"), (req, res) => {
 
 });
 
-app.post("/categories/add", (req,res)=>{
+app.post("/categories/add", ensureLogin, (req,res)=>{
     blogData.addCategory(req.body).then(()=>{
         res.redirect("/categories");
     }).catch(err=>{
@@ -370,11 +445,12 @@ app.post("/categories/add", (req,res)=>{
 
 // setup http server to listen on HTTP_PORT
 
-// Attempted the methods below to bring in the exported initalize function, but had no luck as node was telling me that the module was not found
-blogData.initialize().then((data) => {
-    app.listen(HTTP_PORT, onHttpStart);
-    console.log("Express http server listening on " + HTTP_PORT)
-}).catch((err) => {
-    console.error("Error starting server: " + err + " aborting startup");
-
+blogData.initialize()
+.then(authData.initialize)
+.then(function(){
+    app.listen(HTTP_PORT, function(){
+        console.log("app listening on: " + HTTP_PORT)
+    });
+}).catch(function(err){
+    console.log("unable to start server: " + err);
 });
